@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #222;
+            color: #fff;
+        }
+        canvas {
+            display: none;
+            margin: 20px auto;
+            background-color: #333;
+        }
+        .shop {
+            display: none;
+            background-color: #444;
+            padding: 20px;
+            margin: 20px auto;
+            width: 80%;
+            border-radius: 10px;
+        }
+        .shop .skin {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            margin: 10px;
+            border: 2px solid transparent;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .shop .skin.selected {
+            border: 2px solid yellow;
+        }
+        .button {
+            padding: 10px 20px;
+            background-color: #00aaff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        #shopIcon {
+            display: none;
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            cursor: pointer;
+            background-color: #444;
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 5px;
+        }
+        #scoreBoard {
+            display: none;
+            margin: 20px auto;
+        }
+        #scoreBoard span {
+            margin: 0 20px;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Snake Game</h1>
+    <div id="scoreBoard">
+        <span id="score">Score: 0</span>
+        <span id="highScore">Highscore: 0</span>
+        <span id="level">Level: 1</span>
+    </div>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <div id="shopIcon" class="button">Shop</div>
+    <button id="button" class="button">Start Game</button>
+    <div id="shop" class="shop">
+        <h2>Select Skin</h2>
+        <div id="skinsContainer">
+            <!-- 12 Skins -->
+            <div id="skin1" class="skin" style="background-color: green;"></div>
+            <div id="skin2" class="skin" style="background-color: blue;"></div>
+            <div id="skin3" class="skin" style="background-color: yellow;"></div>
+            <div id="skin4" class="skin" style="background-color: purple;"></div>
+            <div id="skin5" class="skin" style="background-color: pink;"></div>
+            <div id="skin6" class="skin" style="background-color: wheat;"></div>
+            <div id="skin7" class="skin" style="background-color: lime;"></div>
+            <div id="skin8" class="skin" style="background-color: grey;"></div>
+            <div id="skin9" class="skin" style="background: url('uploaded-skin.jpg') center/cover;"></div>
+            <div id="skin10" class="skin" style="background: url('geometric-skin.jpg') center/cover;"></div>
+            <div id="skin11" class="skin" style="background: url('wood-skin.jpg') center/cover;"></div>
+	         <div id="skin12" class="skin" style="background: url('rainbow-skin.jpg') center/cover;"></div>
+			  <div id="skin13" class="skin" style="background: url('fire-skin.jpg') center/cover;"></div>
+        <button id="closeShop" class="button">Close Shop</button>
+    </div>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Snake settings
+        let snake = [{ x: 200, y: 200 }];
+        let snakeDirection = { x: 0, y: 0 };
+        let snakeSize = 20;
+        let snakeLength = 1;
+        let isGameOver = false;
+        let snakeColor = "green";
+        let snakeImage = null;
+        let isPaused = false;
+
+        // Food settings
+        let food = {};
+        spawnFood();
+
+        // Score and Level settings
+        let score = 0;
+        let highScore = localStorage.getItem("highScore") || 0;
+        let level = 1;
+        let gameSpeed = 275;
+
+        // Game loop
+        function gameLoop() {
+            if (isGameOver || isPaused) return;
+
+            updateSnake();
+            checkCollision();
+            drawGame();
+
+            setTimeout(gameLoop, gameSpeed);
+        }
+
+        // Update snake position
+        function updateSnake() {
+            const newHead = { x: snake[0].x + snakeDirection.x * snakeSize, y: snake[0].y + snakeDirection.y * snakeSize };
+            snake.unshift(newHead);
+
+            if (snake.length > snakeLength) {
+                snake.pop();
+            }
+        }
+
+        // Draw the game
+        function drawGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw food
+            ctx.fillStyle = "white";
+            ctx.fillRect(food.x, food.y, snakeSize, snakeSize);
+
+            // Draw snake
+            for (let segment of snake) {
+                if (snakeImage) {
+                    if (snakeImage.src.includes("wood-skin.jpg")) {
+                        const minecraftBlock = new Image();
+                        minecraftBlock.src = "minecraft-dirt.png";
+                        if (snakeDirection.y !== 0) {
+                            ctx.drawImage(minecraftBlock, segment.x, segment.y, snakeSize, snakeSize);
+                        } else {
+                            ctx.drawImage(snakeImage, segment.x, segment.y, snakeSize, snakeSize);
+                        }
+                    } else {
+                        ctx.drawImage(snakeImage, segment.x, segment.y, snakeSize, snakeSize);
+                    }
+                } else {
+                    ctx.fillStyle = snakeColor;
+                    ctx.fillRect(segment.x, segment.y, snakeSize, snakeSize);
+                }
+            }
+
+            // Update score and level display
+            document.getElementById("score").textContent = `Score: ${score}`;
+            document.getElementById("highScore").textContent = `Highscore: ${highScore}`;
+            document.getElementById("level").textContent = `Level: ${level}`;
+        }
+
+        // Check collisions
+        function checkCollision() {
+            // Wall collision
+            if (snake[0].x < 0 || snake[0].x >= canvas.width || snake[0].y < 0 || snake[0].y >= canvas.height) {
+                gameOver();
+            }
+
+            // Self-collision
+            for (let i = 1; i < snake.length; i++) {
+                if (snake[0].x === snake[i].x && snake[0].y === snake[i].y) {
+                    gameOver();
+                }
+            }
+
+            // Food collision
+            if (snake[0].x === food.x && snake[0].y === food.y) {
+                snakeLength++;
+                score += 10;
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem("highScore", highScore);
+                }
+                if (score % 50 === 0) {
+                    level++;
+                    gameSpeed = Math.max(50, gameSpeed - 25);
+                }
+                spawnFood();
+            }
+        }
+
+        // End the game
+        function gameOver() {
+            isGameOver = true;
+            alert("Game Over! Restart the Website to play again.");
+        }
+
+        // Spawn food
+        function spawnFood() {
+            food = {
+                x: Math.floor(Math.random() * (canvas.width / snakeSize)) * snakeSize,
+                y: Math.floor(Math.random() * (canvas.height / snakeSize)) * snakeSize
+            };
+        }
+
+        // Keyboard controls
+        document.addEventListener("keydown", (event) => {
+            if (isPaused) return;
+            switch (event.key) {
+                case "ArrowUp":
+                    if (snakeDirection.y === 0) snakeDirection = { x: 0, y: -1 };
+                    break;
+                case "ArrowDown":
+                    if (snakeDirection.y === 0) snakeDirection = { x: 0, y: 1 };
+                    break;
+                case "ArrowLeft":
+                    if (snakeDirection.x === 0) snakeDirection = { x: -1, y: 0 };
+                    break;
+                case "ArrowRight":
+                    if (snakeDirection.x === 0) snakeDirection = { x: 1, y: 0 };
+                    break;
+            }
+        });
+
+                // Shop logic to select skins
+        const skins = document.querySelectorAll(".skin");
+        skins.forEach((skin) => {
+            skin.addEventListener("click", () => {
+                skins.forEach((s) => s.classList.remove("selected"));
+                skin.classList.add("selected");
+
+                // Set snakeColor or snakeImage based on the selected skin
+                switch (skin.id) {
+                    case "skin1":
+                        snakeColor = "green";
+                        snakeImage = null;
+                        break;
+                    case "skin2":
+                        snakeColor = "blue";
+                        snakeImage = null;
+                        break;
+                    case "skin3":
+                        snakeColor = "yellow";
+                        snakeImage = null;
+                        break;
+                    case "skin4":
+                        snakeColor = "purple";
+                        snakeImage = null;
+                        break;
+                    case "skin5":
+                        snakeColor = "pink";
+                        snakeImage = null;
+                        break;
+                    case "skin6":
+                        snakeColor = "wheat";
+                        snakeImage = null;
+                        break;
+                    case "skin7":
+                        snakeColor = "lime";
+                        snakeImage = null;
+                        break;
+                    case "skin8":
+                        snakeColor = "grey";
+                        snakeImage = null;
+                        break;
+                    case "skin9":
+                        snakeImage = new Image();
+                        snakeImage.src = "uploaded-skin.jpg";
+                        break;
+                    case "skin10":
+                        snakeImage = new Image();
+                        snakeImage.src = "geometric-skin.jpg";
+                        break;
+                    case "skin11":
+                        snakeImage = new Image();
+                        snakeImage.src = "wood-skin.jpg";
+                        break;
+						case "skin12":
+								 snakeImage = new Image();
+								 snakeImage.src = "rainbow-skin.jpg";
+						case "skin13":
+								 snakeImage = new Image();
+								 snakeImage.src = "fire-skin.jpg";
+                }
+            });
+        });
+
+        // Show and hide shop
+        const shopIcon = document.getElementById("shopIcon");
+        const shop = document.getElementById("shop");
+        const closeShop = document.getElementById("closeShop");
+
+        shopIcon.addEventListener("click", () => {
+            isPaused = true;
+            shop.style.display = "block";
+        });
+
+        closeShop.addEventListener("click", () => {
+            shop.style.display = "none";
+            isPaused = false;
+            gameLoop();
+        });
+
+        // Start the game
+        const button = document.getElementById("button");
+        button.addEventListener("click", () => {
+            shopIcon.style.display = "block";
+            document.getElementById("scoreBoard").style.display = "block";
+            canvas.style.display = "block";
+            button.style.display = "none";
+            gameLoop();
+        });
+
+        // Touch controls for mobile devices
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        canvas.addEventListener("touchstart", (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+
+        canvas.addEventListener("touchmove", (e) => {
+            if (isGameOver || isPaused) return;
+
+            const touchEndX = e.touches[0].clientX;
+            const touchEndY = e.touches[0].clientY;
+
+            const diffX = touchEndX - touchStartX;
+            const diffY = touchEndY - touchStartY;
+
+            if (Math.abs(diffX) > Math.abs(diffY)) {
+                if (diffX > 0 && snakeDirection.x === 0) {
+                    snakeDirection = { x: 1, y: 0 };
+                } else if (diffX < 0 && snakeDirection.x === 0) {
+                    snakeDirection = { x: -1, y: 0 };
+                }
+            } else {
+                if (diffY > 0 && snakeDirection.y === 0) {
+                    snakeDirection = { x: 0, y: 1 };
+                } else if (diffY < 0 && snakeDirection.y === 0) {
+                    snakeDirection = { x: 0, y: -1 };
+                }
+            }
+
+            e.preventDefault();
+        });
+    </script>
+</body>
+</html>
